@@ -1,0 +1,101 @@
+import Live
+from _Framework.ControlSurfaceComponent import ControlSurfaceComponent
+
+class VUMeter(ControlSurfaceComponent):
+    'standalone class used to handle VU meters'
+
+    def __init__(self, parent):
+        ControlSurfaceComponent.__init__(self)
+        self._parent = parent
+        self._meter_level = 0
+        self._left_level = 0
+
+        self._left_track = self.song().tracks[0]
+        
+        self.setup_button_matrixes()
+
+        self.song().master_track.add_output_meter_level_listener(self.observe_master_vu)
+
+        self._left_track.add_output_meter_level_listener(self.observe_left_vu)
+
+        parent.log_message(str(self.song().master_track.output_meter_level))
+
+    def disconnect(self):
+        self.song().master_track.remove_output_meter_level_listener(self.observe_master_vu)
+        self._left_track.remove_output_meter_level_listener(self.observe_left_vu)
+
+    def observe_master_vu(self):
+        master_level = self.song().master_track.output_meter_level * 5.0 #float, scale 0-5
+        self._meter_level = int(round(master_level))
+        self.set_master_leds()
+
+    def observe_left_vu(self):
+        left_level = self._left_track.output_meter_level
+        left_level = left_level - 0.6
+        if (left_level < 0.0):
+          left_level = 0
+        left_level = left_level * 25.0 #float, scale 0-5
+        self._left_level = int(round(left_level))
+        self.set_left_leds()
+
+    def setup_button_matrixes(self):
+        self._left_matrix = [] # Matrix of all the buttons for the left channel
+
+
+        strip = self._parent._mixer.channel_strip(0)
+        
+        for button_index in range(5):
+          self._left_matrix.append(self._parent._button_rows[button_index][0])
+
+        self._left_matrix.append(self._parent._track_stop_buttons[0])
+        self._left_matrix.append(strip._select_button)
+        self._left_matrix.append(strip._mute_button)
+        self._left_matrix.append(strip._solo_button)
+        self._left_matrix.append(strip._arm_button)
+
+    def set_master_leds(self):
+        for scene_index in range(5):
+            scene = self._parent._session.scene(scene_index)
+            if scene_index >= (5 - self._meter_level):
+              scene._launch_button.turn_on()
+            else:
+              scene._launch_button.turn_off()
+  
+    def set_left_leds(self):
+        for index in range(10):
+          button = self._left_matrix[index]
+          if index >= (10 - self._left_level): 
+            button.turn_on()
+          else:
+            button.turn_off()
+
+    def update_leds(self):
+        # do nothing
+        self._parent.log_message('Updates!')
+
+    def update(self):
+        self.update_leds
+
+    def on_enabled_changed(self):
+        self.update()
+
+    def on_selected_track_changed(self):
+        self.update()
+
+    def on_track_list_changed(self):
+        self.update()
+
+    def on_selected_scene_changed(self):
+        self.update()
+
+    def on_scene_list_changed(self):
+        self.update()
+
+
+
+
+
+
+
+
+
