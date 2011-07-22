@@ -94,21 +94,20 @@ class VUMeter(ControlSurfaceComponent):
     def set_leds(self, matrix, level):
         for column_index in range(2):
           for index in range(10):
-            try:
-              button = matrix[column_index][index] 
-              if index >= (10 - level): 
-                if index < 2:
-                  button.send_value(3, True)
-                elif index < 4:
-                  button.send_value(5), True
-                else:
-                  button.send_value(127, True)
+
+            self._parent.log_message(str(column_index))
+            self._parent.log_message(str(index))
+
+            button = matrix[column_index][index] 
+            if index >= (10 - level): 
+              if index < 2:
+                button.send_value(3, True)
+              elif index < 4:
+                button.send_value(5), True
               else:
-                button.send_value(0, True)
-              break
-            except:
-              self._parent.log_message(str(column_index))
-              self._parent.log_message(str(index))
+                button.send_value(127, True)
+            else:
+              button.send_value(0, True)
 
 
     def setup_button_matrixes(self):
