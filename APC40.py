@@ -22,7 +22,7 @@ from ShiftTranslatorComponent import ShiftTranslatorComponent
 from PedaledSessionComponent import PedaledSessionComponent
 from SpecialMixerComponent import SpecialMixerComponent
 
-from VUMeter import VUMeter
+from VUMeters import VUMeters
 
 class APC40(APC):
     __doc__ = " Script for Akai's APC40 Controller "
@@ -171,7 +171,7 @@ class APC40(APC):
         detail_view_toggler.set_device_nav_buttons(device_bank_buttons[2], device_bank_buttons[3])
 
         # VU Meters
-        vu = VUMeter(self)
+        vu = VUMeters(self)
 
         transport = ShiftableTransportComponent()
         transport.name = 'Transport'
