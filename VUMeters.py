@@ -25,13 +25,43 @@ LED_ORANGE = 5
 # Scaling constants. Narrows the db range we display to 0db-21db or thereabouts
 CHANNEL_SCALE_MAX = 0.92
 CHANNEL_SCALE_MIN = 0.52
-CHANNEL_SCALE_MULTIPLY = 25
+CHANNEL_SCALE_INCREMENTS = 10
 
 MASTER_SCALE_MAX = 0.92
 MASTER_SCALE_MIN = 0.52
-MASTER_SCALE_MULTIPLY = 12.5
+MASTER_SCALE_INCREMENTS = 5
 
-class VUMeter(ControlSurfaceComponent):
+class VUMeter():
+  'represents a single VU to store RMS values etc in'
+  def __init__(self, parent, track, matrix, top, bottom, increments):
+    self.parent = parent
+    self.track = track
+    self.matrix = matrix
+    self.top = top
+    self.bottom = bottom
+    self.multiplier = calculate_multiplier(top, bottom, increments)
+
+  def observe(self):
+    level = self.scale_vu(rms_level)
+    if level != self.current_level:
+      self.current_level = level
+      self.parent.set_leds(self.matrix, level) 
+
+    # Perform the scaling as per params. We reduce the range, then round it out to integers
+    def scale(self, value):
+      if (value > self.top):
+        value = self.top
+      elif (value < self.bottom):
+        value = self.bottom
+      value = value - self.bottom
+      value = value * self.multiplier #float, scale 0-10
+      return int(round(value))
+    
+    def calculate_multiplier(top, bottom, increments):
+      return (increments / (top - bottom))
+
+
+class VUMeters(ControlSurfaceComponent):
     'standalone class used to handle VU meters'
 
     def __init__(self, parent):
@@ -51,14 +81,22 @@ class VUMeter(ControlSurfaceComponent):
         self._left_track = self.song().tracks[LEFT_SOURCE]
         self._right_track = self.song().tracks[RIGHT_SOURCE]
         
-
         # Get ourselves a nice array of the columns of buttons we want to make blink
         self.setup_button_matrixes()
 
+        #setup classes
+        self.left_meter = VUMeter(self, parent, self._left_track, 
+                                  self._left_matrix, CHANNEL_SCALE_MAX, 
+                                  CHANNEL_SCALE_MIN, CHANNEL_SCALE_INCREMENTS)
+        self.right_meter = VUMeter(self, parent, self._right_track, 
+                                  self._right_matrix, CHANNEL_SCALE_MAX, 
+                                  CHANNEL_SCALE_MIN, CHANNEL_SCALE_INCREMENTS)
+
         # Listeners!
-        self.song().master_track.add_output_meter_right_listener(self.observe_master_vu)
-        self._left_track.add_output_meter_left_listener(self.observe_left_vu)
-        self._right_track.add_output_meter_left_listener(self.observe_right_vu)
+        self._left_track.add_output_meter_left_listener(self.left_meter.observe)
+        #self.song().master_track.add_output_meter_right_listener(self.observe_master_vu)
+        #self._left_track.add_output_meter_left_listener(self.observe_left_vu)
+        #self._right_track.add_output_meter_left_listener(self.observe_right_vu)
 
     # If you fail to kill the listeners on shutdown, Ableton stores them in memory and punches you in the face
     def disconnect(self):
@@ -66,68 +104,15 @@ class VUMeter(ControlSurfaceComponent):
         self._left_track.remove_output_meter_left_listener(self.observe_left_vu)
         self._right_track.remove_output_meter_left_listener(self.observe_right_vu)
 
-    # Scales floats from 0-1 to integers from 0-10, with some cutoffs
-    def scale_vu(self, value):
-      return self.scale(value, CHANNEL_SCALE_MAX, CHANNEL_SCALE_MIN, CHANNEL_SCALE_MULTIPLY)
-    
-    # Scales floats from 0-1 to integers from 0-5, with some cutoffs
-    def scale_master(self, value):
-      return self.scale(value, MASTER_SCALE_MAX, MASTER_SCALE_MIN, MASTER_SCALE_MULTIPLY)
-
-    # Perform the scaling as per params. We reduce the range, then round it out to integers
-    def scale(self, value, top, bottom, multiplier):
-      if (value > top):
-        value = top
-      elif (value < bottom):
-        value = bottom
-      value = value - bottom
-      value = value * multiplier #float, scale 0-10
-      return int(round(value))
-
-    def observe_master_vu(self):
-        master_level = self.song().master_track.output_meter_right 
-        if master_level >= 0.92:
-          self._clipping = True
-          self.clip_warning()
-        else:
-          if self._clipping:
-            self._parent.refresh_state()
-            self._clipping = False
-          self._meter_level = self.scale_master(master_level)
-          self.set_master_leds()
-
-    def observe_left_vu(self):
-      rms_level = self._left_track.output_meter_left 
-      level = self.scale_vu(rms_level)
-      if level != self._left_level:
-        self._left_level = level
-        self.set_leds(self._left_matrix, level)
-
-    def observe_right_vu(self):
-      rms_level = self._right_track.output_meter_left 
-      level = self.scale(rms_level)
-      if level != self._right_level:
-        self._right_level = level
-        self.set_leds(self._right_matrix, level)
-
     # Called when the Master clips. Makes the entire clip grid BRIGHT RED 
-    def clip_warning(self):
-      for row_index in range(CLIP_GRID_Y):
-        row = self._parent._button_rows[row_index]
-        for button_index in range(CLIP_GRID_X):
-          button = row[button_index]
-          # Passing True to send_value forces it to happen even when the button in question is MIDI mapped
-          button.send_value(LED_RED, True)
+    #def clip_warning(self):
+    #  for row_index in range(CLIP_GRID_Y):
+    #    row = self._parent._button_rows[row_index]
+    #    for button_index in range(CLIP_GRID_X):
+    #      button = row[button_index]
+    #      # Passing True to send_value forces it to happen even when the button in question is MIDI mapped
+    #      button.send_value(LED_RED, True)
 
-    # Light up the scene launch buttons based on current Master level
-    def set_master_leds(self):
-        for scene_index in range(CLIP_GRID_Y):
-            scene = self._parent._session.scene(scene_index)
-            if scene_index >= (CLIP_GRID_Y - self._meter_level):
-              scene._launch_button.send_value(LED_ON, True)
-            else:
-              scene._launch_button.send_value(LED_OFF, True)
-  
     # Iterate through every column in the matrix, light up the LEDs based on the level
     # Level for channels is scaled to 10 cos we have 10 LEDs
     # Top two LEDs are red, the next is orange
