@@ -56,7 +56,8 @@ class VUMeter():
       self.parent._clipping = True
       self.parent.clip_warning()
     else:
-      if self.master:
+      if self.master and self.parent._clipping:
+        self.parent._parent.refresh_state()
         self.parent._clipping = False
       if not self.parent._clipping:
         level = self.scale(self.rms(self.frames))
