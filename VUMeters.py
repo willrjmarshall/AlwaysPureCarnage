@@ -33,6 +33,7 @@ MASTER_SCALE_MIN = 0.52
 MASTER_SCALE_INCREMENTS = 5
 
 RMS_FRAMES = 2
+USE_RMS = True
 
 class VUMeter():
   'represents a single VU to store RMS values etc in'
@@ -60,10 +61,13 @@ class VUMeter():
         self.parent._parent.refresh_state()
         self.parent._clipping = False
       if not self.parent._clipping:
-        level = self.scale(self.rms(self.frames))
+        if USE_RMS:
+          level = self.scale(self.rms(self.frames))
+        else:
+          level = self.scale(new_frame)
         if level != self.current_level:
           self.current_level = level
-          #self.parent._parent.log_message(str(len(self.matrix)))
+          self.parent._parent.log_message("MIDI OUT")
           if self.master:
             self.parent.set_master_leds(level)
           else:
