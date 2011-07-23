@@ -96,18 +96,19 @@ class VUMeter(ControlSurfaceComponent):
           self._meter_level = self.scale_master(master_level)
           self.set_master_leds()
 
-
-    # Observes changes in the RMS of tracks, sets their level as an integer and passes it through to led code
-    def observe_vu(self, matrix, track):
-      # If we are currently clipping, EVERYTHING is red and no VUs are shown
-      if self._clipping == False:
-        return self.scale_vu(track.output_meter_left)
-
     def observe_left_vu(self):
-      level = self.observe_vu(self._left_matrix, self._left_track)
+      rms_level = self._left_track.output_meter_left 
+      level = self.scale_vu(rms_level)
+      if level != self._left_level:
+        self._left_level = level
+        self.set_leds(self._left_matrix, level)
 
     def observe_right_vu(self):
-      level = self.observe_vu(self._right_matrix, self._right_track)
+      rms_level = self._right_track.output_meter_left 
+      level = self.scale(rms_level)
+      if level != self._right_level:
+        self._right_level = level
+        self.set_leds(self._right_matrix, level)
 
     # Called when the Master clips. Makes the entire clip grid BRIGHT RED 
     def clip_warning(self):
