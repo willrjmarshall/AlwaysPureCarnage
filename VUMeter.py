@@ -23,8 +23,8 @@ LED_OFF = 0
 LED_ORANGE = 5
 
 # Scaling constants. Narrows the db range we display to 0db-21db or thereabouts
-CHANNEL_SCALE_MAX = 0.9
-CHANNEL_SCALE_MIN = 0.5
+CHANNEL_SCALE_MAX = 0.92
+CHANNEL_SCALE_MIN = 0.52
 CHANNEL_SCALE_MULTIPLY = 25
 
 MASTER_SCALE_MAX = 0.92
@@ -101,15 +101,13 @@ class VUMeter(ControlSurfaceComponent):
     def observe_vu(self, matrix, track):
       # If we are currently clipping, EVERYTHING is red and no VUs are shown
       if self._clipping == False:
-        level = self.scale_vu(track.output_meter_left)
-        self.set_leds(matrix, level)
+        return self.scale_vu(track.output_meter_left)
 
-    # Python doesn't seem to have closures that'll make this nicer. FAIL PYTHON.
     def observe_left_vu(self):
-      self.observe_vu(self._left_matrix, self._left_track)
+      level = self.observe_vu(self._left_matrix, self._left_track)
 
     def observe_right_vu(self):
-      self.observe_vu(self._right_matrix, self._right_track)
+      level = self.observe_vu(self._right_matrix, self._right_track)
 
     # Called when the Master clips. Makes the entire clip grid BRIGHT RED 
     def clip_warning(self):
@@ -133,13 +131,13 @@ class VUMeter(ControlSurfaceComponent):
     # Level for channels is scaled to 10 cos we have 10 LEDs
     # Top two LEDs are red, the next is orange
     def set_leds(self, matrix, level):
-        for column_index in range(len(matrix)):
+        for column in matrix:
           for index in range(10):
-            button = matrix[column_index][index] 
+            button = column[index] 
             if index >= (10 - level): 
-              if index < 2:
+              if index < 1:
                 button.send_value(LED_RED, True)
-              elif index < 4:
+              elif index < 2:
                 button.send_value(LED_ORANGE, True)
               else:
                 button.send_value(LED_ON, True)
@@ -161,10 +159,7 @@ class VUMeter(ControlSurfaceComponent):
             column.append(self._parent._button_rows[row_index][column_index])
           strip = self._parent._mixer.channel_strip(column_index)
           column.append(self._parent._track_stop_buttons[column_index])
-          column.append(strip._select_button)
-          column.append(strip._mute_button)
-          column.append(strip._solo_button)
-          column.append(strip._arm_button)
+          column.extend([strip._select_button, strip._mute_button, strip._solo_button, strip._arm_button])
 
     # boilerplate
     def update(self):
