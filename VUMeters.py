@@ -1,6 +1,7 @@
 import Live
 from _Framework.ControlSurfaceComponent import ControlSurfaceComponent
 from _Framework.ButtonElement import ButtonElement
+from _Framework.SessionComponent import SessionComponent 
 import math
 
 
@@ -57,9 +58,14 @@ class VUMeter():
       self.parent._clipping = True
       self.parent.clip_warning()
     else:
+
       if self.master and self.parent._clipping:
-        self.parent._parent.refresh_state()
+        self.parent._parent._session._change_offsets(0, 1) 
+        self.parent._parent._session._change_offsets(0, -1) 
+
+
         self.parent._clipping = False
+
       if not self.parent._clipping:
         if USE_RMS:
           level = self.scale(self.rms(self.frames))
@@ -67,7 +73,6 @@ class VUMeter():
           level = self.scale(new_frame)
         if level != self.current_level:
           self.current_level = level
-          self.parent._parent.log_message("MIDI OUT")
           if self.master:
             self.parent.set_master_leds(level)
           else:
